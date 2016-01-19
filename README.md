@@ -1,5 +1,5 @@
 # tldr
-Simplified and community-driven man pages
+Simplified and community-driven man pages http://tldr-pages.github.io/
 
 ## Usage
 
