@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+hash curl 2>/dev/null || ( echo 'To use the "tldr" command-line tool you need to install a curl' && exit 1 )
+hash unzip 2>/dev/null || ( echo 'To use the "tldr" command-line tool you need to install a unzip' && exit 1 )
+
+[ ! -d ~/.tldr/markdown ] &&
+    (
+        mkdir -p "$HOME/.tldr"
+        cd /tmp
+        curl -L "https://github.com/axiros/terminal_markdown_viewer/archive/master.zip" -o master.zip
+        unzip /tmp/master.zip && rm master.zip
+        mv terminal_markdown_viewer-master "$HOME/.tldr/markdown"
+    ) &>/dev/null
+
+[ $# -lt 1 ] && ( echo "Usage: $0 [command]" && exit 1)
+
+function getManPage {
+    folder="$HOME/.tldr"
+    [ ! -d "$folder" ] && mkdir -p "$folder"
+
+    # 20160 minutes is 14 days
+    if [ ! -f "$folder/$2.md" ] || [ $(find -mmin 20160 "$folder/$2.md" &>/dev/null) ]
+    then
+        baseurl=https://raw.githubusercontent.com/tldr-pages/tldr/master/pages/
+        output=$(curl -s -w "\n%{http_code}" -L "$baseurl/$1/$2.md" 2>/dev/null)
+        http_code=$(echo "$output" | tail -n1)
+        markdown=$(echo "$output" | sed '$d')
+
+        if [[ $http_code -eq 200 ]]
+        then
+            echo "$markdown" > "$folder/$2.md"
+        else
+            return 1
+        fi
+    fi
+}
+
+get_platform() {
+    case `uname -s` in
+        Darwin) echo "osx"    ;;
+        Linux)  echo "linux"  ;;
+        SunOS)  echo "sunos"  ;;
+        *)      echo "common" ;;
+    esac
+}
+
+getManPage $(get_platform) $1 || 
+    getManPage common $1 &&
+    "$HOME/.tldr/markdown/mdv.py" -t 820.1148 "$HOME/.tldr/$1.md" 2>/dev/null
+
